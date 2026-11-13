@@ -612,15 +612,16 @@
     <p class="lead">Décrivez votre besoin : un expert vous répond, sans engagement et sans discours commercial.</p>
   </div>
 
-  <!-- Formulaire via FormSubmit (aucun compte requis).
-       IMPORTANT : tant que le lien « Activate Form » reçu sur kevin.cannet@hackmazone.fr n'a pas été cliqué
-       (vérifier aussi les indésirables), FormSubmit ne transmet AUCUN message.
+  <!-- Formulaire via Web3Forms (https://web3forms.com) : les messages sont acheminés par e-mail
+       vers l'adresse associée à la clé d'accès ci-dessous. Cette clé est publique par conception.
+       Pour changer de destinataire : générer une nouvelle clé sur web3forms.com et remplacer la valeur de access_key.
        L'envoi se fait en AJAX (script en bas de page) avec un retour visible ; sans JavaScript, le POST classique reste actif. -->
-  <form class="form reveal" id="contact-form" action="https://formsubmit.co/kevin.cannet@hackmazone.fr" method="POST">
-    <input type="hidden" name="_subject" value="Nouveau contact — site hackmazone.fr">
-    <input type="hidden" name="_template" value="table">
-    <input type="hidden" name="_next" value="https://hackmazone.fr/?envoi=ok#contact">
-    <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <form class="form reveal" id="contact-form" action="https://api.web3forms.com/submit" method="POST">
+    <input type="hidden" name="access_key" value="6fb211f0-d272-4294-8460-7d7c1a797a81">
+    <input type="hidden" name="subject" value="Nouveau contact — site hackmazone.fr">
+    <input type="hidden" name="from_name" value="Site hackmazone.fr">
+    <input type="hidden" name="redirect" value="https://hackmazone.fr/?envoi=ok#contact">
+    <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
     <div class="frow">
       <div class="field"><label>Nom</label><input name="nom" placeholder="Votre nom" required></div>
       <div class="field"><label>Prénom</label><input name="prenom" placeholder="Votre prénom"></div>
@@ -813,7 +814,7 @@
     el.classList.add('show');
   }
 
-  // formulaire de contact : envoi AJAX via FormSubmit + retour visible (plus d'échec silencieux)
+  // formulaire de contact : envoi AJAX via Web3Forms + retour visible (plus d'échec silencieux)
   (function(){
     const form=document.getElementById('contact-form');
     const status=document.getElementById('form-status');
@@ -847,12 +848,13 @@
       if(!window.fetch) return;              // repli : POST classique
       ev.preventDefault();
       const data=Object.fromEntries(new FormData(form).entries());
-      if(data._honey) return;                // robot
+      if(data.botcheck) return;              // pot de miel coché : robot
+      delete data.redirect;                  // redirection réservée au POST classique (sinon réponse non JSON)
       btn.disabled=true; btn.textContent='Envoi en cours…';
       let res;
       try{
         const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(),15000);
-        res=await fetch(form.action.replace('formsubmit.co/','formsubmit.co/ajax/'),{
+        res=await fetch(form.action,{
           method:'POST',
           headers:{'Content-Type':'application/json','Accept':'application/json'},
           body:JSON.stringify(data),
@@ -871,8 +873,8 @@
         form.reset();
         show('ok',OK);
       }else{
-        // refus du service (ex. formulaire non activé côté FormSubmit) : détail en console
-        console.error('[contact] FormSubmit a refusé l\'envoi :',res.status,j.message||j);
+        // refus du service (clé invalide, quota, filtre anti-spam…) : détail en console
+        console.error('[contact] Web3Forms a refusé l\'envoi :',res.status,j.message||(j.body&&j.body.message)||j);
         show('err',"L'envoi n'a pas abouti.",mailto(data));
       }
     });
