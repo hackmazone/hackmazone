@@ -612,8 +612,15 @@
     <p class="lead">Décrivez votre besoin : un expert vous répond, sans engagement et sans discours commercial.</p>
   </div>
 
-  <!-- Formulaire via FormSubmit (aucun compte requis). Au 1er envoi, un email de confirmation arrive sur kevin.cannet@hackmazone.fr : clique le lien une fois, puis le formulaire fonctionne. -->
-  <form class="form reveal" action="https://formsubmit.co/kevin.cannet@hackmazone.fr" method="POST">
+  <!-- Formulaire via FormSubmit (aucun compte requis).
+       IMPORTANT : tant que le lien « Activate Form » reçu sur kevin.cannet@hackmazone.fr n'a pas été cliqué
+       (vérifier aussi les indésirables), FormSubmit ne transmet AUCUN message.
+       L'envoi se fait en AJAX (script en bas de page) avec un retour visible ; sans JavaScript, le POST classique reste actif. -->
+  <form class="form reveal" id="contact-form" action="https://formsubmit.co/kevin.cannet@hackmazone.fr" method="POST">
+    <input type="hidden" name="_subject" value="Nouveau contact — site hackmazone.fr">
+    <input type="hidden" name="_template" value="table">
+    <input type="hidden" name="_next" value="https://hackmazone.fr/?envoi=ok#contact">
+    <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
     <div class="frow">
       <div class="field"><label>Nom</label><input name="nom" placeholder="Votre nom" required></div>
       <div class="field"><label>Prénom</label><input name="prenom" placeholder="Votre prénom"></div>
@@ -636,6 +643,7 @@
     </div>
     <div class="field" style="margin-bottom:16px"><label>Message</label><textarea name="message" placeholder="Décrivez votre besoin…"></textarea></div>
     <button type="submit" class="btn btn-primary">Échanger avec un expert →</button>
+    <p class="form-status" id="form-status" role="status" aria-live="polite" hidden></p>
 
     <div class="direct">
       <b>Vous préférez un contact direct ?</b>
@@ -804,6 +812,71 @@
       '<a href="#contact" class="btn btn-primary">Faire auditer mon site →</a>';
     el.classList.add('show');
   }
+
+  // formulaire de contact : envoi AJAX via FormSubmit + retour visible (plus d'échec silencieux)
+  (function(){
+    const form=document.getElementById('contact-form');
+    const status=document.getElementById('form-status');
+    if(!form||!status) return;
+    const btn=form.querySelector('button[type="submit"]');
+    const label=btn.textContent;
+    const OK="Message envoyé. Merci, nous revenons vers vous rapidement.";
+
+    function show(kind,text,link){
+      status.className='form-status '+kind;
+      status.textContent=text;
+      if(link){
+        const a=document.createElement('a');
+        a.href=link; a.textContent="l'envoyer par e-mail";
+        status.append(' Vous pouvez ',a,' ou nous appeler au +594 694 37 32 96.');
+      }
+      status.hidden=false;
+    }
+    // lien mailto pré-rempli : le message du visiteur n'est jamais perdu
+    function mailto(d){
+      const body=['nom','prenom','organisation','fonction','email','telephone','domaine','besoin','urgence']
+        .map(k=>k+' : '+(d[k]||'')).join('\n')+'\n\n'+(d.message||'');
+      return 'mailto:contact@hackmazone.fr?subject='+encodeURIComponent('Demande de contact — '+(d.besoin||''))+
+             '&body='+encodeURIComponent(body);
+    }
+
+    // retour du POST classique (navigateur sans fetch / repli)
+    if(/[?&]envoi=ok/.test(location.search)) show('ok',OK);
+
+    form.addEventListener('submit',async ev=>{
+      if(!window.fetch) return;              // repli : POST classique
+      ev.preventDefault();
+      const data=Object.fromEntries(new FormData(form).entries());
+      if(data._honey) return;                // robot
+      btn.disabled=true; btn.textContent='Envoi en cours…';
+      let res;
+      try{
+        const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(),15000);
+        res=await fetch(form.action.replace('formsubmit.co/','formsubmit.co/ajax/'),{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Accept':'application/json'},
+          body:JSON.stringify(data),
+          signal:ctrl.signal
+        });
+        clearTimeout(t);
+      }catch(e){
+        // réseau / CORS / délai dépassé : on retente par le POST classique
+        console.warn('[contact] envoi AJAX impossible, repli POST classique :',e);
+        form.submit();
+        return;
+      }
+      const j=await res.json().catch(()=>({}));
+      btn.disabled=false; btn.textContent=label;
+      if(res.ok && String(j.success)==='true'){
+        form.reset();
+        show('ok',OK);
+      }else{
+        // refus du service (ex. formulaire non activé côté FormSubmit) : détail en console
+        console.error('[contact] FormSubmit a refusé l\'envoi :',res.status,j.message||j);
+        show('err',"L'envoi n'a pas abouti.",mailto(data));
+      }
+    });
+  })();
 </script>
 </body>
 </html>

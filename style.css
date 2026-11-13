@@ -178,6 +178,12 @@ section{padding:104px 0}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--cyan)}
 .field textarea{resize:vertical;min-height:120px}
 .form .btn-primary{margin-top:8px}
+.form .btn-primary:disabled{opacity:.6;cursor:wait;transform:none}
+.form-status{margin-top:16px;padding:12px 14px;border-radius:10px;font-size:14.5px;border:1px solid var(--border)}
+.form-status.ok{color:var(--green);border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.08)}
+.form-status.err{color:#f87171;border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.08)}
+.form-status a{color:var(--cyan);text-decoration:underline}
+.form-status[hidden]{display:none}
 .direct{margin-top:22px;color:var(--muted);font-size:14.5px}
 .direct b{color:var(--text);display:block;margin-bottom:6px}
 .direct a{color:var(--cyan)}
